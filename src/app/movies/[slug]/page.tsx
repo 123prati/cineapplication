@@ -12,8 +12,18 @@ import {
 } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { formatCents } from "@/lib/constants";
+import { MOCK_MOVIES, MOCK_CINEMAS } from "@/lib/mock-data";
 
-export const dynamic = "force-dynamic";
+export function generateStaticParams() {
+  return [
+    { slug: "dune-part-two" },
+    { slug: "oppenheimer" },
+    { slug: "interstellar" },
+    { slug: "spider-man-across-the-spider-verse" },
+    { slug: "the-dark-knight" },
+    { slug: "inception" },
+  ];
+}
 
 export default async function MovieDetailsPage({
   params,
@@ -21,68 +31,99 @@ export default async function MovieDetailsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const db = getDb();
+  let movieData: any = null;
+  let movieGenreRows: any[] = [];
+  let cinemaList: any[] = [];
 
-  // 1. Fetch movie
-  const [movie] = await db
-    .select()
-    .from(movies)
-    .where(eq(movies.slug, slug));
+  try {
+    const db = getDb();
+    const [movie] = await db
+      .select()
+      .from(movies)
+      .where(eq(movies.slug, slug));
 
-  if (!movie) {
-    notFound();
-  }
+    if (movie) {
+      movieData = movie;
+      movieGenreRows = await db
+        .select({
+          name: genres.name,
+          slug: genres.slug,
+        })
+        .from(movieGenres)
+        .innerJoin(genres, eq(movieGenres.genreId, genres.id))
+        .where(eq(movieGenres.movieId, movie.id));
 
-  // 2. Fetch genres
-  const movieGenreRows = await db
-    .select({
-      name: genres.name,
-      slug: genres.slug,
-    })
-    .from(movieGenres)
-    .innerJoin(genres, eq(movieGenres.genreId, genres.id))
-    .where(eq(movieGenres.movieId, movie.id));
+      const now = new Date();
+      const showtimeRows = await db
+        .select({
+          id: showtimes.id,
+          startTime: showtimes.startTime,
+          endTime: showtimes.endTime,
+          basePriceCents: showtimes.basePriceCents,
+          auditoriumId: auditoriums.id,
+          auditoriumName: auditoriums.name,
+          screenType: auditoriums.screenType,
+          cinemaId: cinemas.id,
+          cinemaName: cinemas.name,
+          cinemaAddress: cinemas.address,
+          cinemaCity: cinemas.city,
+        })
+        .from(showtimes)
+        .innerJoin(auditoriums, eq(showtimes.auditoriumId, auditoriums.id))
+        .innerJoin(cinemas, eq(auditoriums.cinemaId, cinemas.id))
+        .where(and(eq(showtimes.movieId, movie.id), gte(showtimes.startTime, now)));
 
-  // 3. Fetch upcoming showtimes grouped by cinema
-  const now = new Date();
-  const showtimeRows = await db
-    .select({
-      id: showtimes.id,
-      startTime: showtimes.startTime,
-      endTime: showtimes.endTime,
-      basePriceCents: showtimes.basePriceCents,
-      auditoriumId: auditoriums.id,
-      auditoriumName: auditoriums.name,
-      screenType: auditoriums.screenType,
-      cinemaId: cinemas.id,
-      cinemaName: cinemas.name,
-      cinemaAddress: cinemas.address,
-      cinemaCity: cinemas.city,
-    })
-    .from(showtimes)
-    .innerJoin(auditoriums, eq(showtimes.auditoriumId, auditoriums.id))
-    .innerJoin(cinemas, eq(auditoriums.cinemaId, cinemas.id))
-    .where(and(eq(showtimes.movieId, movie.id), gte(showtimes.startTime, now)));
-
-  // Group by cinema
-  const cinemaMap: Record<string, any> = {};
-  for (const st of showtimeRows) {
-    if (!cinemaMap[st.cinemaId]) {
-      cinemaMap[st.cinemaId] = {
-        id: st.cinemaId,
-        name: st.cinemaName,
-        address: st.cinemaAddress,
-        city: st.cinemaCity,
-        showtimes: [],
-      };
+      const cinemaMap: Record<string, any> = {};
+      for (const st of showtimeRows) {
+        if (!cinemaMap[st.cinemaId]) {
+          cinemaMap[st.cinemaId] = {
+            id: st.cinemaId,
+            name: st.cinemaName,
+            address: st.cinemaAddress,
+            city: st.cinemaCity,
+            showtimes: [],
+          };
+        }
+        cinemaMap[st.cinemaId].showtimes.push(st);
+      }
+      cinemaList = Object.values(cinemaMap);
     }
-    cinemaMap[st.cinemaId].showtimes.push(st);
+  } catch (_e) {
+    // Fallback to mock data for static export
   }
 
-  const cinemaList = Object.values(cinemaMap);
+  // Fallback to mock data if DB wasn't populated or running statically
+  if (!movieData) {
+    const mock = MOCK_MOVIES.find((m) => m.slug === slug) || MOCK_MOVIES[0];
+    movieData = mock;
+    movieGenreRows = mock.genres;
+    const today = new Date();
+    cinemaList = MOCK_CINEMAS.map((c) => ({
+      id: c.id,
+      name: c.name,
+      address: c.address,
+      city: c.city,
+      showtimes: [
+        {
+          id: `demo-${c.id}-1`,
+          startTime: new Date(today.setHours(14, 0)).toISOString(),
+          basePriceCents: 1400,
+          auditoriumName: c.auditoriums[0]?.name || "Auditorium 1",
+          screenType: c.auditoriums[0]?.screenType || "IMAX",
+        },
+        {
+          id: `demo-${c.id}-2`,
+          startTime: new Date(today.setHours(18, 30)).toISOString(),
+          basePriceCents: 1800,
+          auditoriumName: c.auditoriums[1]?.name || "Auditorium 2",
+          screenType: c.auditoriums[1]?.screenType || "DOLBY",
+        },
+      ],
+    }));
+  }
 
-  const hours = Math.floor(movie.durationMinutes / 60);
-  const minutes = movie.durationMinutes % 60;
+  const hours = Math.floor(movieData.durationMinutes / 60);
+  const minutes = movieData.durationMinutes % 60;
 
   return (
     <div className="space-y-12 pb-16">
@@ -90,8 +131,8 @@ export default async function MovieDetailsPage({
       <section className="relative w-full min-h-[420px] sm:min-h-[500px] flex items-end overflow-hidden border-b border-slate-800">
         <div className="absolute inset-0">
           <img
-            src={movie.backdropUrl}
-            alt={movie.title}
+            src={movieData.backdropUrl}
+            alt={movieData.title}
             className="w-full h-full object-cover object-center filter brightness-60 contrast-110"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#090d16] via-[#090d16]/70 to-transparent" />
@@ -101,8 +142,8 @@ export default async function MovieDetailsPage({
           {/* Floating Poster */}
           <div className="w-36 sm:w-52 aspect-[2/3] shrink-0 rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border-2 border-slate-700/80 bg-slate-900 hidden sm:block">
             <img
-              src={movie.posterUrl}
-              alt={movie.title}
+              src={movieData.posterUrl}
+              alt={movieData.title}
               className="w-full h-full object-cover"
             />
           </div>
@@ -111,21 +152,21 @@ export default async function MovieDetailsPage({
           <div className="space-y-3 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-md bg-amber-500 text-slate-950 text-xs font-black uppercase">
-                {movie.rating}
+                {movieData.rating}
               </span>
               <span className="px-2.5 py-0.5 rounded-md bg-slate-900/80 text-slate-300 text-xs font-medium border border-slate-700">
                 {hours}h {minutes}m
               </span>
               <span className="px-2.5 py-0.5 rounded-md bg-slate-900/80 text-slate-300 text-xs font-medium border border-slate-700">
-                {movie.language}
+                {movieData.language}
               </span>
               <span className="px-2.5 py-0.5 rounded-md bg-slate-900/80 text-slate-300 text-xs font-medium border border-slate-700">
-                Released {movie.releaseDate}
+                Released {movieData.releaseDate}
               </span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
-              {movie.title}
+              {movieData.title}
             </h1>
 
             {/* Genres */}
@@ -238,12 +279,12 @@ export default async function MovieDetailsPage({
         <div className="space-y-6">
           <div className="glass-panel rounded-2xl p-6 space-y-4 border border-slate-800">
             <h3 className="text-base font-bold text-white">Storyline</h3>
-            <p className="text-sm text-slate-300 leading-relaxed">{movie.description}</p>
+            <p className="text-sm text-slate-300 leading-relaxed">{movieData.description}</p>
 
-            {movie.trailerUrl && (
+            {movieData.trailerUrl && (
               <div className="pt-2">
                 <a
-                  href={movie.trailerUrl}
+                  href={movieData.trailerUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-xs font-semibold text-amber-400 border border-slate-700 transition-colors"

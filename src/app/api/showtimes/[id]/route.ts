@@ -4,6 +4,10 @@ import { getDb } from "@/db";
 import { showtimes, movies, auditoriums, cinemas } from "@/db/schema";
 import { apiError, apiSuccess, handleRouteError } from "@/lib/errors";
 
+export function generateStaticParams() {
+  return [];
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

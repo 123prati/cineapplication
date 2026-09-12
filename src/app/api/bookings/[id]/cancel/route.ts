@@ -3,6 +3,10 @@ import { getSessionFromRequest } from "@/lib/auth";
 import { cancelBooking } from "@/lib/booking-service";
 import { apiError, apiSuccess, handleRouteError } from "@/lib/errors";
 
+export function generateStaticParams() {
+  return [];
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

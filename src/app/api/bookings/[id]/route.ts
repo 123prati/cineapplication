@@ -14,6 +14,10 @@ import {
 import { getSessionFromRequest } from "@/lib/auth";
 import { apiError, apiSuccess, handleRouteError } from "@/lib/errors";
 
+export function generateStaticParams() {
+  return [];
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
