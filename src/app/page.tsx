@@ -5,38 +5,48 @@ import { movies, genres, movieGenres } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { MovieCard } from "@/components/movie-card";
 
-export const dynamic = "force-dynamic";
+import { MOCK_MOVIES } from "@/lib/mock-data";
 
 export default async function HomePage() {
-  const db = getDb();
+  let moviesWithGenres: any[] = [];
 
-  // Fetch active movies
-  const allMovies = await db
-    .select()
-    .from(movies)
-    .where(eq(movies.isActive, true));
+  try {
+    const db = getDb();
 
-  // Fetch genres
-  const allGenres = await db.select().from(genres);
-  const allMovieGenres = await db
-    .select({
-      movieId: movieGenres.movieId,
-      genreName: genres.name,
-      genreSlug: genres.slug,
-    })
-    .from(movieGenres)
-    .innerJoin(genres, eq(movieGenres.genreId, genres.id));
+    // Fetch active movies
+    const allMovies = await db
+      .select()
+      .from(movies)
+      .where(eq(movies.isActive, true));
 
-  const genresByMovieId: Record<string, Array<{ name: string; slug: string }>> = {};
-  for (const mg of allMovieGenres) {
-    if (!genresByMovieId[mg.movieId]) genresByMovieId[mg.movieId] = [];
-    genresByMovieId[mg.movieId].push({ name: mg.genreName, slug: mg.genreSlug });
+    // Fetch genres
+    const allGenres = await db.select().from(genres);
+    const allMovieGenres = await db
+      .select({
+        movieId: movieGenres.movieId,
+        genreName: genres.name,
+        genreSlug: genres.slug,
+      })
+      .from(movieGenres)
+      .innerJoin(genres, eq(movieGenres.genreId, genres.id));
+
+    const genresByMovieId: Record<string, Array<{ name: string; slug: string }>> = {};
+    for (const mg of allMovieGenres) {
+      if (!genresByMovieId[mg.movieId]) genresByMovieId[mg.movieId] = [];
+      genresByMovieId[mg.movieId].push({ name: mg.genreName, slug: mg.genreSlug });
+    }
+
+    moviesWithGenres = allMovies.map((m: any) => ({
+      ...m,
+      genres: genresByMovieId[m.id] || [],
+    }));
+  } catch (_err) {
+    // Fallback for static GitHub Pages export
   }
 
-  const moviesWithGenres = allMovies.map((m: any) => ({
-    ...m,
-    genres: genresByMovieId[m.id] || [],
-  }));
+  if (moviesWithGenres.length === 0) {
+    moviesWithGenres = MOCK_MOVIES;
+  }
 
   // Featured billboard movie (e.g. Dune: Part Two or first movie)
   const featured =

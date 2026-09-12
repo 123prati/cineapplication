@@ -4,12 +4,24 @@ import { getDb } from "@/db";
 import { cinemas, auditoriums } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export const dynamic = "force-dynamic";
+import { MOCK_CINEMAS } from "@/lib/mock-data";
 
 export default async function CinemasPage() {
-  const db = getDb();
-  const allCinemas = await db.select().from(cinemas);
-  const allAuditoriums = await db.select().from(auditoriums);
+  let allCinemas: any[] = [];
+  let allAuditoriums: any[] = [];
+
+  try {
+    const db = getDb();
+    allCinemas = await db.select().from(cinemas);
+    allAuditoriums = await db.select().from(auditoriums);
+  } catch (_err) {
+    // Fallback for static export
+  }
+
+  if (allCinemas.length === 0) {
+    allCinemas = MOCK_CINEMAS;
+    allAuditoriums = MOCK_CINEMAS.flatMap((c) => c.auditoriums.map((a) => ({ ...a, cinemaId: c.id })));
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-8">

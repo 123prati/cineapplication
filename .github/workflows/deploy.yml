@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Setup GitHub Pages
@@ -45,6 +45,8 @@ jobs:
           if [ -d "src/api_routes_backup" ]; then
             mv src/api_routes_backup src/app/api
           fi
+          # Ensure GitHub Pages does not ignore _next folder
+          touch ./out/.nojekyll
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3

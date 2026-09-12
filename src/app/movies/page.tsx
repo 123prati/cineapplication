@@ -5,6 +5,8 @@ import { FiltersBar } from "@/components/filters-bar";
 import { MovieCard } from "@/components/movie-card";
 import { Film, AlertCircle } from "lucide-react";
 
+import { MOCK_MOVIES, MOCK_GENRES, MOCK_CINEMAS } from "@/lib/mock-data";
+
 export default function MoviesPage() {
   const [movies, setMovies] = useState<any[]>([]);
   const [genres, setGenres] = useState<any[]>([]);
@@ -23,13 +25,17 @@ export default function MoviesPage() {
     async function loadMeta() {
       try {
         const [gRes, cRes] = await Promise.all([
-          fetch("/api/genres").then((r) => r.json()),
-          fetch("/api/cinemas").then((r) => r.json()),
+          fetch("/api/genres").then((r) => r.json()).catch(() => null),
+          fetch("/api/cinemas").then((r) => r.json()).catch(() => null),
         ]);
-        if (gRes.success) setGenres(gRes.data.genres);
-        if (cRes.success) setCinemas(cRes.data.cinemas);
-      } catch (err) {
-        console.error("Failed to load metadata:", err);
+        if (gRes?.success) setGenres(gRes.data.genres);
+        else setGenres(MOCK_GENRES);
+
+        if (cRes?.success) setCinemas(cRes.data.cinemas);
+        else setCinemas(MOCK_CINEMAS);
+      } catch (_err) {
+        setGenres(MOCK_GENRES);
+        setCinemas(MOCK_CINEMAS);
       }
     }
     loadMeta();
@@ -48,15 +54,34 @@ export default function MoviesPage() {
         if (selectedCinema !== "all") params.set("cinema", selectedCinema);
         if (selectedDate !== "all") params.set("date", selectedDate);
 
-        const res = await fetch(`/api/movies?${params.toString()}`);
-        if (res.ok) {
+        const res = await fetch(`/api/movies?${params.toString()}`).catch(() => null);
+        if (res && res.ok) {
           const json = await res.json();
-          if (!isCancelled) setMovies(json.data.movies);
+          if (!isCancelled && json.success) {
+            setMovies(json.data.movies);
+            return;
+          }
         }
-      } catch (err) {
-        console.error("Failed to fetch movies:", err);
-      } finally {
-        if (!isCancelled) setLoading(false);
+      } catch (_err) {}
+
+      // Fallback filtering on MOCK_MOVIES
+      if (!isCancelled) {
+        let list = [...MOCK_MOVIES];
+        if (search) {
+          list = list.filter((m) =>
+            m.title.toLowerCase().includes(search.toLowerCase())
+          );
+        }
+        if (selectedGenre !== "all") {
+          list = list.filter((m) =>
+            m.genres.some((g) => g.slug === selectedGenre)
+          );
+        }
+        if (selectedLanguage !== "all") {
+          list = list.filter((m) => m.language === selectedLanguage);
+        }
+        setMovies(list);
+        setLoading(false);
       }
     }
 

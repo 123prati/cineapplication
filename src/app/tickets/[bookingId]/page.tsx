@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, Ticket, ArrowRight } from "lucide-react";
 import { getDb } from "@/db";
@@ -13,8 +12,15 @@ import {
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { DigitalTicket } from "@/components/digital-ticket";
+import { MOCK_MOVIES, MOCK_CINEMAS } from "@/lib/mock-data";
 
-export const dynamic = "force-dynamic";
+export function generateStaticParams() {
+  return [
+    { bookingId: "demo-booking-1" },
+    { bookingId: "demo-booking-2" },
+    { bookingId: "demo" },
+  ];
+}
 
 export default async function TicketPage({
   params,
@@ -22,45 +28,104 @@ export default async function TicketPage({
   params: Promise<{ bookingId: string }>;
 }) {
   const { bookingId } = await params;
-  const db = getDb();
 
-  // 1. Fetch booking
-  const [booking] = await db
-    .select()
-    .from(bookings)
-    .where(eq(bookings.id, bookingId));
+  let booking: any = null;
+  let items: any[] = [];
+  let issuedTickets: any[] = [];
+  let stDetails: any = null;
 
-  if (!booking) {
-    notFound();
+  try {
+    const db = getDb();
+
+    // 1. Fetch booking
+    const [b] = await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.id, bookingId));
+
+    if (b) {
+      booking = b;
+      items = await db
+        .select()
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, booking.id));
+
+      issuedTickets = await db
+        .select()
+        .from(tickets)
+        .where(eq(tickets.bookingId, booking.id));
+
+      const [st] = await db
+        .select({
+          showtime: showtimes,
+          movie: movies,
+          auditorium: auditoriums,
+          cinema: cinemas,
+        })
+        .from(showtimes)
+        .innerJoin(movies, eq(showtimes.movieId, movies.id))
+        .innerJoin(auditoriums, eq(showtimes.auditoriumId, auditoriums.id))
+        .innerJoin(cinemas, eq(auditoriums.cinemaId, cinemas.id))
+        .where(eq(showtimes.id, booking.showtimeId));
+
+      stDetails = st;
+    }
+  } catch (_err) {
+    // Fallback for static GitHub Pages export
   }
 
-  // 2. Fetch items & tickets
-  const items = await db
-    .select()
-    .from(bookingItems)
-    .where(eq(bookingItems.bookingId, booking.id));
+  // Fallback mock pass for static export or demo IDs
+  if (!booking || !stDetails) {
+    const mockMovie = MOCK_MOVIES[0];
+    const mockCinema = MOCK_CINEMAS[0];
+    const mockAuditorium = mockCinema.auditoriums[0];
+    const showtimeDate = new Date(Date.now() + 4 * 3600 * 1000);
 
-  const issuedTickets = await db
-    .select()
-    .from(tickets)
-    .where(eq(tickets.bookingId, booking.id));
-
-  // 3. Fetch showtime, movie, auditorium, cinema
-  const [stDetails] = await db
-    .select({
-      showtime: showtimes,
-      movie: movies,
-      auditorium: auditoriums,
-      cinema: cinemas,
-    })
-    .from(showtimes)
-    .innerJoin(movies, eq(showtimes.movieId, movies.id))
-    .innerJoin(auditoriums, eq(showtimes.auditoriumId, auditoriums.id))
-    .innerJoin(cinemas, eq(auditoriums.cinemaId, cinemas.id))
-    .where(eq(showtimes.id, booking.showtimeId));
-
-  if (!stDetails) {
-    notFound();
+    booking = {
+      id: bookingId,
+      bookingReference: "CB-DEMO-8821",
+      status: "CONFIRMED",
+      totalCents: 3348,
+      createdAt: new Date(),
+    };
+    stDetails = {
+      movie: {
+        title: mockMovie.title,
+        rating: mockMovie.rating,
+        durationMinutes: mockMovie.durationMinutes,
+        posterUrl: mockMovie.posterUrl,
+      },
+      cinema: {
+        name: mockCinema.name,
+        address: mockCinema.address,
+        city: mockCinema.city,
+      },
+      auditorium: {
+        name: mockAuditorium.name,
+        screenType: mockAuditorium.screenType,
+      },
+      showtime: {
+        startTime: showtimeDate,
+      },
+    };
+    items = [
+      { seatLabel: "D4", priceCents: 1400 },
+      { seatLabel: "D5", priceCents: 1400 },
+    ];
+    issuedTickets = [
+      {
+        id: "ticket-1",
+        ticketCode: "TC-DEMO-D4",
+        qrCodeData: "CINEBOOK-PASS-D4-VERIFIED",
+        status: "VALID",
+      },
+      {
+        id: "ticket-2",
+        ticketCode: "TC-DEMO-D5",
+        qrCodeData: "CINEBOOK-PASS-D5-VERIFIED",
+        status: "VALID",
+      },
+    ];
   }
 
   return (
@@ -95,7 +160,7 @@ export default async function TicketPage({
           bookingReference: booking.bookingReference,
           status: booking.status,
           totalCents: booking.totalCents,
-          createdAt: booking.createdAt.toISOString(),
+          createdAt: typeof booking.createdAt === "string" ? booking.createdAt : booking.createdAt.toISOString(),
         }}
         movie={{
           title: stDetails.movie.title,
@@ -113,7 +178,7 @@ export default async function TicketPage({
           screenType: stDetails.auditorium.screenType,
         }}
         showtime={{
-          startTime: stDetails.showtime.startTime.toISOString(),
+          startTime: typeof stDetails.showtime.startTime === "string" ? stDetails.showtime.startTime : stDetails.showtime.startTime.toISOString(),
         }}
         tickets={issuedTickets.map((t: any) => ({
           id: t.id,

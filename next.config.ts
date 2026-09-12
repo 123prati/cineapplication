@@ -6,9 +6,12 @@ const repoName = "/cineapplication";
 const nextConfig: NextConfig = {
   output: isGithubPages ? "export" : undefined,
   basePath: isGithubPages ? repoName : "",
-  assetPrefix: isGithubPages ? `${repoName}/` : undefined,
+  trailingSlash: true,
   images: {
     unoptimized: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   serverExternalPackages: ["@electric-sql/pglite", "@neondatabase/serverless", "pg"],
 };

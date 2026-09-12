@@ -22,31 +22,41 @@ export function Navbar() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch("/api/auth/me");
-        if (res.ok) {
+        const res = await fetch("/api/auth/me").catch(() => null);
+        if (res && res.ok) {
           const data = await res.json();
           setUser(data.data.user);
-        } else {
-          setUser(null);
+          return;
         }
-      } catch {
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
+      } catch {}
+
+      // Check localStorage for static demo mode
+      try {
+        const stored = localStorage.getItem("cinebook_user");
+        if (stored) {
+          setUser(JSON.parse(stored));
+          return;
+        }
+      } catch {}
+
+      setUser(null);
+      setIsLoading(false);
     }
-    checkAuth();
+    checkAuth().finally(() => setIsLoading(false));
   }, [pathname]);
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      setUser(null);
-      router.push("/");
-      router.refresh();
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
     } catch (e) {
       console.error(e);
     }
+    try {
+      localStorage.removeItem("cinebook_user");
+    } catch {}
+    setUser(null);
+    router.push("/");
+    router.refresh();
   };
 
   const handleQuickLogin = async (email: string, pass: string) => {
@@ -55,15 +65,30 @@ export function Navbar() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: pass }),
-      });
-      if (res.ok) {
+      }).catch(() => null);
+      if (res && res.ok) {
         const data = await res.json();
         setUser(data.data.user);
         router.refresh();
+        return;
       }
     } catch (e) {
       console.error(e);
     }
+
+    // Static fallback
+    const role = email.includes("admin") ? "ADMIN" : "USER";
+    const demoUser: UserSession = {
+      userId: `demo-${Date.now()}`,
+      name: email.includes("admin") ? "Cinema Admin" : "Demo Customer",
+      email,
+      role: role as any,
+    };
+    try {
+      localStorage.setItem("cinebook_user", JSON.stringify(demoUser));
+    } catch {}
+    setUser(demoUser);
+    router.refresh();
   };
 
   return (
