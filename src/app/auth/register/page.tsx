@@ -85,6 +85,10 @@ function RegisterForm() {
         onSubmit={handleSubmit}
         className="glass-panel rounded-3xl p-6 sm:p-8 space-y-4 border border-slate-800"
       >
+        <div className="rounded-2xl bg-slate-900/90 border border-slate-800 p-3 text-center text-xs text-slate-400">
+          🎓 Portfolio Sandbox: Any demo name and email can be used to test.
+        </div>
+
         <div>
           <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
           <div className="relative">
@@ -117,7 +121,7 @@ function RegisterForm() {
 
         <div>
           <label className="block text-xs font-semibold text-slate-300 mb-1">
-            Password (min 8 chars)
+            Demo Passcode (min 8 chars)
           </label>
           <div className="relative">
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />

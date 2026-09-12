@@ -76,13 +76,13 @@ function LoginForm() {
       {/* Quick Fill Box */}
       <div className="rounded-2xl bg-slate-900/90 border border-slate-800 p-4 space-y-2.5">
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-amber-400" /> One-Click Demo Credentials
+          <Sparkles className="h-3.5 w-3.5 text-amber-400" /> One-Click Instant Demo Login
         </span>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => fillCredentials("customer@cinebook.com", "Password123!")}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-left border border-slate-700/60 transition-colors"
+            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-left border border-slate-700/60 transition-colors"
           >
             <span className="block text-xs font-bold text-slate-200">Customer Demo</span>
             <span className="block text-[10px] text-slate-400 font-mono">customer@cinebook.com</span>
@@ -90,12 +90,15 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => fillCredentials("admin@cinebook.com", "AdminPassword123!")}
-            className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-left border border-amber-500/30 transition-colors"
+            className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-left border border-amber-500/30 transition-colors"
           >
             <span className="block text-xs font-bold text-amber-300">Admin Demo</span>
             <span className="block text-[10px] text-amber-400/70 font-mono">admin@cinebook.com</span>
           </button>
         </div>
+        <p className="text-[10px] text-slate-400 text-center">
+          Portfolio Demonstration: No real credentials or accounts are stored.
+        </p>
       </div>
 
       {error && (
@@ -126,7 +129,9 @@ function LoginForm() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+          <label className="block text-xs font-semibold text-slate-300 mb-1">
+            Demo Passcode / PIN
+          </label>
           <div className="relative">
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
             <input

@@ -29,10 +29,9 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
   const [isHoldExpired, setIsHoldExpired] = useState(false);
 
   // Form states
-  const [cardName, setCardName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExp, setCardExp] = useState("");
-  const [cardCvc, setCardCvc] = useState("");
+  const [guestName, setGuestName] = useState("Jane CinemaGoer");
+  const [guestEmail, setGuestEmail] = useState("guest@cinebook.demo");
+  const [checkoutMethod, setCheckoutMethod] = useState<"instant" | "vip">("instant");
 
   // Persistent idempotency key
   const [idempotencyKey] = useState(
@@ -125,12 +124,11 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
     loadBooking().finally(() => setLoading(false));
   }, [bookingId]);
 
-  // Quick fill test card
+  // Quick fill demo guest
   const handleQuickFill = () => {
-    setCardName("Jane CinemaGoer");
-    setCardNumber("4242 •••• •••• 4242");
-    setCardExp("12/28");
-    setCardCvc("888");
+    setGuestName("Jane CinemaGoer");
+    setGuestEmail("jane.cinemagoer@demo.internal");
+    setCheckoutMethod("instant");
   };
 
   const handlePayment = async (e: React.FormEvent) => {
@@ -150,7 +148,9 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
         body: JSON.stringify({
           bookingId,
           idempotencyKey,
-          paymentMethod: `CARD_${cardNumber.slice(-4) || "TEST"}`,
+          paymentMethod: checkoutMethod === "vip" ? "VIP_PASS" : "INSTANT_DEMO_PASS",
+          guestName,
+          guestEmail,
         }),
       }).catch(() => null);
 
@@ -260,10 +260,10 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                  <CreditCard className="h-5 w-5" />
+                  <Ticket className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Payment Method</h3>
+                  <h3 className="text-base font-bold text-white">Order Authorization</h3>
                   <p className="text-xs text-slate-400">Simulation sandbox mode enabled</p>
                 </div>
               </div>
@@ -273,74 +273,88 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
                 onClick={handleQuickFill}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400/10 border border-amber-400/30 text-amber-400 text-xs font-semibold hover:bg-amber-400/20 transition-all"
               >
-                <Sparkles className="h-3.5 w-3.5" /> Quick Fill Demo
+                <Sparkles className="h-3.5 w-3.5" /> Auto-Fill Demo
               </button>
+            </div>
+
+            {/* Sandbox Method Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300 block">
+                Select Demo Checkout Method
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCheckoutMethod("instant")}
+                  className={`p-3.5 rounded-2xl text-left border transition-all ${
+                    checkoutMethod === "instant"
+                      ? "bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10"
+                      : "bg-slate-900 border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🎟️</span>
+                    <span className="text-xs font-bold text-white">Instant Demo Pass</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Pre-authorized simulated token. Instant QR pass issuance.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCheckoutMethod("vip")}
+                  className={`p-3.5 rounded-2xl text-left border transition-all ${
+                    checkoutMethod === "vip"
+                      ? "bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10"
+                      : "bg-slate-900 border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">💎</span>
+                    <span className="text-xs font-bold text-white">CineClub VIP Pass</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Simulated membership points checkout with zero cost.
+                  </p>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  Cardholder Full Name
+                  Attendee / Guest Name
                 </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Jane Doe"
-                  value={cardName}
-                  onChange={(e) => setCardName(e.target.value)}
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400"
                 />
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  Card Number (Sandbox Simulation)
+                  Delivery Email (for digital pass receipt)
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  placeholder="4242 4242 4242 4242"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-amber-400"
+                  placeholder="guest@example.com"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                    Expiry Date
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="MM/YY"
-                    value={cardExp}
-                    onChange={(e) => setCardExp(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                    CVC Code
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="123"
-                    value={cardCvc}
-                    onChange={(e) => setCardCvc(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
               </div>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 flex items-start gap-2.5">
-              <Lock className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
               <span>
-                Simulated 256-bit TLS encrypted checkout. No real payment or billing will occur.
+                Educational Sandbox Demonstration: No credit card or sensitive personal data is collected or required.
               </span>
             </div>
 
@@ -352,12 +366,12 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Authorizing Order...
+                  Issuing Digital Pass...
                 </>
               ) : (
                 <>
-                  <ShieldCheck className="h-4 w-4" />
-                  Pay {formatCents(booking.totalCents)} & Issue Tickets
+                  <Ticket className="h-4 w-4" />
+                  Authorize & Issue Tickets ({formatCents(booking.totalCents)})
                 </>
               )}
             </button>
